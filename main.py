@@ -1,4 +1,5 @@
 import math
+import re
 
 import pymorphy2
 
@@ -93,26 +94,34 @@ class TfIdf:
         self.name = name
         self.tf_idf = []
 
-class SearcRes:
-    def __init__(self, doc_name, sum):
+class SearchResult:
+    def __init__(self, doc_name, reality_sum):
         self.doc_name = doc_name
-        self.sum  = sum
+        self.reality_sum  = reality_sum
 
 
 def search(search_info, tfIdfs):
-    serch_strings = search_info.split()
-    print(serch_strings)
+    search_strings = search_info.split()
     results = []
-    for tfIdf in tfIdfs:
+    for value in tfIdfs:
         temp = 0
-        for serch in serch_strings:
-            for mp in tfIdf.tf_idf:
-                if mp.get(serch, 0) > 0:
-                    print(mp.get(serch, 0))
+        for search_string in search_strings:
+            for mp in value.tf_idf:
+                term = morph.parse(search_string)[0].normal_form
+                temp += mp.get(term, 0)
+        results.append(SearchResult(value.name, temp))
+    results.sort(key=lambda x: x.reality_sum, reverse=True)
     return results
+
 
 def main():
     docs = init_test_docs_ru()
+    for doc in docs:
+        doc.text =  re.sub(r'[^\w\s]', '', doc.text)
+
+
+    # for doc in docs:
+    #     print(f"name: {doc.name}, text: {doc.text}")
 
     docs_tf = find_doc_tf(docs)
 
@@ -125,14 +134,14 @@ def main():
             tfidf_obj.tf_idf.append({word: tf_val * words_idf[word]})
         results.append(tfidf_obj)
 
-    for item in results:
-        print(f"Document: {item.name}")
-        print("TF-IDF: ", item.tf_idf)
-        print("----------")
-    search_txt = 'здоровья яблоко'
-    search_res = search(search_txt, results)
+    # for item in results:
+    #     print(f"Document: {item.name}")
+    #     print("TF-IDF: ", item.tf_idf)
+    #     print("----------")
+    search_data = 'здоровья яблоко поколение важный'
+    search_res = search(search_data, results)
     for item in search_res:
-        print(f"document: {item.doc_name} reality: {item.sum}")
+        print(f"document: {item.doc_name} reality: {item.reality_sum}")
 
 
 if __name__ == "__main__":
