@@ -1,139 +1,117 @@
 import math
-
 import pymorphy2
-
 
 morph = pymorphy2.MorphAnalyzer()
 
-class Doc:
+class Document:
     def __init__(self, name, text):
         self.name = name
         self.text = text
 
-
-def init_test_docs():
+def load_sample_documents_ru():
     return [
-        Doc("doc1", "ananas banana apple"),
-        Doc("doc2", "apple orange apple banana apple"),
-        Doc("doc3", "grape ananas peach banana ananas"),
-        Doc("doc4", "mango pineapple banana"),
-        Doc("doc5", "strawberry blueberry raspberry ananas ananas"),
-        Doc("doc6", "banana apple peach"),
-        Doc("doc7", "pineapple mango orange"),
-        Doc("doc8", "grape banana strawberry"),
-        Doc("doc9", "blueberry raspberry ananas"),
-        Doc("doc10", "orange mango banana orange orange orange ananas ananas")
+        Document("doc1", "Яблоки полезны для здоровья. Они содержат витамины и антиоксиданты."),
+        Document("doc2", "Космос – это бесконечное пространство, полное загадок и тайн."),
+        Document("doc3", "Программирование – это процесс создания программ для компьютеров."),
+        Document("doc4", "Путешествия помогают расширять кругозор и узнавать новые культуры."),
+        Document("doc5", "Спорт укрепляет организм и помогает поддерживать хорошую физическую форму."),
+        Document("doc6", "Искусственный интеллект меняет мир, улучшая технологии и автоматизируя процессы."),
+        Document("doc7", "Музыка влияет на настроение человека и может вызывать сильные эмоции."),
+        Document("doc8", "История – это наука, изучающая прошлое человечества."),
+        Document("doc9", "Книги помогают развивать мышление и воображение, обогащая словарный запас."),
+        Document("doc10", "Экология важна для сохранения природы и здоровья будущих поколений.")
     ]
 
-def init_test_docs_ru():
-    return [
-        Doc("doc1", "Яблоки полезны для здоровья. Они содержат витамины и антиоксиданты."),
-        Doc("doc2", "Космос – это бесконечное пространство, полное загадок и тайн."),
-        Doc("doc3", "Программирование – это процесс создания программ для компьютеров."),
-        Doc("doc4", "Путешествия помогают расширять кругозор и узнавать новые культуры."),
-        Doc("doc5", "Спорт укрепляет организм и помогает поддерживать хорошую физическую форму."),
-        Doc("doc6", "Искусственный интеллект меняет мир, улучшая технологии и автоматизируя процессы."),
-        Doc("doc7", "Музыка влияет на настроение человека и может вызывать сильные эмоции."),
-        Doc("doc8", "История – это наука, изучающая прошлое человечества."),
-        Doc("doc9", "Книги помогают развивать мышление и воображение, обогащая словарный запас."),
-        Doc("doc10", "Экология важна для сохранения природы и здоровья будущих поколений.")
-    ]
+def count_documents_containing_words(documents):
+    word_document_count = {}
+    for document in documents:
+        words_in_document = set()
+        for token in document.text.split():
+            normalized_word = morph.parse(token)[0].normal_form
+            if normalized_word not in words_in_document:
+                word_document_count[normalized_word] = word_document_count.get(normalized_word, 0) + 1
+                words_in_document.add(normalized_word)
+    return word_document_count
 
+class DocumentTermFrequency:
+    def __init__(self, document_name):
+        self.document_name = document_name
+        self.term_frequencies = {}
 
+def calculate_term_frequencies(documents):
+    term_frequencies_list = []
+    for document in documents:
+        term_frequency = DocumentTermFrequency(document.name)
+        tokens = document.text.split()
+        total_tokens = len(tokens)
 
-def find_word_doc(docs):
-    word_in_docs = {}
-    for doc in docs:
-        seen_in_current_doc = set()
-        for token in doc.text.split():
-            if token not in seen_in_current_doc:
-                r_token = morph.parse(token)[0].normal_form
-                word_in_docs[r_token] = word_in_docs.get(r_token, 0) + 1
-                seen_in_current_doc.add(r_token)
-    return word_in_docs
-
-
-class DocTF:
-    def __init__(self, name):
-        self.name = name
-        self.tf = {}
-
-
-def find_doc_tf(docs):
-    results = []
-    for doc in docs:
-        doc_tf = DocTF(doc.name)
-        tokens = doc.text.split()
-        length = len(tokens)
-
-        freq_map = {}
+        frequency_map = {}
         for token in tokens:
-            r_token = morph.parse(token)[0].normal_form
-            freq_map[r_token] = freq_map.get(r_token, 0) + 1
+            normalized_word = morph.parse(token)[0].normal_form
+            frequency_map[normalized_word] = frequency_map.get(normalized_word, 0) + 1
 
-        for word, count in freq_map.items():
-            doc_tf.tf[word] = count / length
+        for word, count in frequency_map.items():
+            term_frequency.term_frequencies[word] = count / total_tokens
 
-        results.append(doc_tf)
-    return results
+        term_frequencies_list.append(term_frequency)
+    return term_frequencies_list
 
+def calculate_inverse_document_frequencies(documents):
+    word_document_count = count_documents_containing_words(documents)
+    total_documents = len(documents)
+    inverse_document_frequencies = {}
 
-def find_word_idf(docs):
+    for word, document_count in word_document_count.items():
+        inverse_document_frequencies[word] = math.log2(total_documents / document_count)
 
-    word_in_docs = find_word_doc(docs)
-    total_docs = len(docs)
-    idf_map = {}
-    for word, doc_count in word_in_docs.items():
-        idf_map[word] = math.log2(total_docs / doc_count)
-    return idf_map
+    return inverse_document_frequencies
 
+class TFIDFResult:
+    def __init__(self, document_name):
+        self.document_name = document_name
+        self.tfidf_values = []
 
-class TfIdf:
-    def __init__(self, name):
-        self.name = name
-        self.tf_idf = []
+class SearchResult:
+    def __init__(self, document_name, relevance_score):
+        self.document_name = document_name
+        self.relevance_score = relevance_score
 
-class SearcRes:
-    def __init__(self, doc_name, sum):
-        self.doc_name = doc_name
-        self.sum  = sum
-
-
-def search(search_info, tfIdfs):
-    serch_strings = search_info.split()
-    print(serch_strings)
+def perform_search(query, tfidf_results):
+    query_words = query.split()
+    print("Search terms:", query_words)
     results = []
-    for tfIdf in tfIdfs:
-        temp = 0
-        for serch in serch_strings:
-            for mp in tfIdf.tf_idf:
-                if mp.get(serch, 0) > 0:
-                    print(mp.get(serch, 0))
+
+    for tfidf in tfidf_results:
+        for query_word in query_words:
+            for tfidf_entry in tfidf.tfidf_values:
+                if tfidf_entry.get(query_word, 0) > 0:
+                    print(tfidf_entry.get(query_word, 0))
+
     return results
 
 def main():
-    docs = init_test_docs_ru()
+    documents = load_sample_documents_ru()
 
-    docs_tf = find_doc_tf(docs)
+    term_frequencies = calculate_term_frequencies(documents)
+    inverse_document_frequencies = calculate_inverse_document_frequencies(documents)
 
-    words_idf = find_word_idf(docs)
+    tfidf_results = []
+    for term_frequency in term_frequencies:
+        tfidf_result = TFIDFResult(term_frequency.document_name)
+        for word, tf_value in term_frequency.term_frequencies.items():
+            tfidf_result.tfidf_values.append({word: tf_value * inverse_document_frequencies[word]})
+        tfidf_results.append(tfidf_result)
 
-    results = []
-    for doc_tf in docs_tf:
-        tfidf_obj = TfIdf(doc_tf.name)
-        for word, tf_val in doc_tf.tf.items():
-            tfidf_obj.tf_idf.append({word: tf_val * words_idf[word]})
-        results.append(tfidf_obj)
-
-    for item in results:
-        print(f"Document: {item.name}")
-        print("TF-IDF: ", item.tf_idf)
+    for item in tfidf_results:
+        print(f"Document: {item.document_name}")
+        print("TF-IDF: ", item.tfidf_values)
         print("----------")
-    search_txt = 'здоровья яблоко'
-    search_res = search(search_txt, results)
-    for item in search_res:
-        print(f"document: {item.doc_name} reality: {item.sum}")
 
+    search_query = 'здоровья яблоко'
+    search_results = perform_search(search_query, tfidf_results)
+
+    for item in search_results:
+        print(f"Document: {item.document_name}, Relevance Score: {item.relevance_score}")
 
 if __name__ == "__main__":
     main()
