@@ -154,7 +154,6 @@ def search(search_info, tfidfs):
     return res
 
 def main():
-    # Пример использования:
     pdf_folder_path = 'C:/Users/ICSS2location10/Desktop/datasets'  # Укажите путь к папке с PDF
     documents = load_documents_from_pdfs(pdf_folder_path)
     for doc in documents:
