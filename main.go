@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"strings"
 )
 
@@ -135,12 +137,12 @@ func main() {
 			res[i].TfIdf = append(res[i].TfIdf, map[string]float64{key: val * wordsIdf[key]})
 		}
 	}
-	//bytes, err := json.MarshalIndent(&res, "", " ")
-	//if err != nil {
-	//	log.Println(err)
-	//	return
-	//}
-	//os.WriteFile("model.json", bytes, 0644)
+	bytes, err := json.MarshalIndent(&res, "", " ")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	os.WriteFile("model.json", bytes, 0644)
 
 	results := search("apple orange", res)
 	for _, result := range results {

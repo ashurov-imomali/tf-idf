@@ -1,12 +1,65 @@
+import json
 import math
 import pymorphy2
+import pdfplumber
+import os
+from typing import List
 
 morph = pymorphy2.MorphAnalyzer()
+
 
 class Document:
     def __init__(self, name, text):
         self.name = name
         self.text = text
+
+
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """Извлекает текст из PDF файла."""
+    with pdfplumber.open(pdf_path) as pdf:
+        text = ''
+        for page in pdf.pages:
+            text += page.extract_text()
+    return text
+
+def load_documents_from_pdfs(pdf_folder: str) -> List[Document]:
+    """Читает все PDF файлы из папки и возвращает список объектов Document."""
+    documents = []
+    for filename in os.listdir(pdf_folder):
+        if filename.endswith('.pdf'):
+            pdf_path = os.path.join(pdf_folder, filename)
+            text = extract_text_from_pdf(pdf_path)
+            document = Document(name=filename, text=text)
+            documents.append(document)
+    return documents
+
+
+
+
+
+
+def save_to_json(filename, data):
+    """Сохраняет данные в файл JSON."""
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+    print(f"Данные успешно сохранены в файл: {filename}")
+def save_search_results_to_json(filename, search_results):
+    search_results_dict = [result.to_dict() for result in search_results]
+    save_to_json(filename, search_results_dict)
+
+
+def load_from_json(filename):
+    """Загружает данные из файла JSON и возвращает их."""
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data
+    except FileNotFoundError:
+        print(f"Файл {filename} не найден.")
+        return None
+    except json.JSONDecodeError:
+        print(f"Ошибка при чтении данных из файла {filename}.")
+        return None
 
 def load_sample_documents_ru():
     return [
@@ -70,29 +123,49 @@ class TFIDFResult:
     def __init__(self, document_name):
         self.document_name = document_name
         self.tfidf_values = []
+    def to_dict(self):
+        return {"document_name": self.document_name, "tfidf_values": self.tfidf_values}
 
 class SearchResult:
     def __init__(self, document_name, relevance_score):
         self.document_name = document_name
         self.relevance_score = relevance_score
 
-def perform_search(query, tfidf_results):
-    query_words = query.split()
-    print("Search terms:", query_words)
-    results = []
+    def to_dict(self):
+        return {"doc_name": self.document_name, "score": self.relevance_score}
 
-    for tfidf in tfidf_results:
-        for query_word in query_words:
-            for tfidf_entry in tfidf.tfidf_values:
-                if tfidf_entry.get(query_word, 0) > 0:
-                    print(tfidf_entry.get(query_word, 0))
 
-    return results
+def search(search_info, tfidfs):
+    search_words = search_info.split()
+    res = []
+
+    for tfidf in tfidfs:
+        temp_sum = 0.0
+        for word in search_words:
+            for mp in tfidf.tfidf_values:
+                temp_sum += mp.get(word, 0)
+
+        res.append(SearchResult(document_name=tfidf.document_name, relevance_score=temp_sum))
+
+    # Сортировка результатов по убыванию
+    res.sort(key=lambda x: x.relevance_score, reverse=True)
+
+    return res
 
 def main():
-    documents = load_sample_documents_ru()
+    # Пример использования:
+    pdf_folder_path = 'C:/Users/ICSS2location10/Desktop/datasets'  # Укажите путь к папке с PDF
+    documents = load_documents_from_pdfs(pdf_folder_path)
+    for doc in documents:
+        print(f"Document name: {doc.name}")
+        print(f"Text preview: {doc.text[:200]}...\n")
+    # documents = load_sample_documents_ru()
 
     term_frequencies = calculate_term_frequencies(documents)
+
+    for term in term_frequencies:
+        for k, v in term.term_frequencies.items():
+            print(f"Term: {k}: {v}")
     inverse_document_frequencies = calculate_inverse_document_frequencies(documents)
 
     tfidf_results = []
@@ -102,13 +175,11 @@ def main():
             tfidf_result.tfidf_values.append({word: tf_value * inverse_document_frequencies[word]})
         tfidf_results.append(tfidf_result)
 
-    for item in tfidf_results:
-        print(f"Document: {item.document_name}")
-        print("TF-IDF: ", item.tfidf_values)
-        print("----------")
-
+    save_search_results_to_json("docs-tf-idf.json", tfidf_results)
     search_query = 'здоровья яблоко'
-    search_results = perform_search(search_query, tfidf_results)
+    search_results = search(search_query, tfidf_results)
+
+    save_search_results_to_json('search_results.json', search_results)
 
     for item in search_results:
         print(f"Document: {item.document_name}, Relevance Score: {item.relevance_score}")
