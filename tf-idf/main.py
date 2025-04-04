@@ -1,5 +1,6 @@
 import json
 import math
+import re
 
 import pymorphy2
 import pdfplumber
@@ -23,6 +24,10 @@ def extract_text_from_pdf(pdf_path: str) -> str:
             text += page.extract_text()
     return text
 
+
+def remove_punctuation(text):
+     return re.sub(r'[^a-zA-Z^а-яА-Я0-9 ]', '', text)
+
 def load_documents_from_pdfs(pdf_folder: str) -> List[Document]:
     """Читает все PDF файлы из папки и возвращает список объектов Document."""
     documents = []
@@ -30,6 +35,7 @@ def load_documents_from_pdfs(pdf_folder: str) -> List[Document]:
         if filename.endswith('.pdf'):
             pdf_path = os.path.join(pdf_folder, filename)
             text = extract_text_from_pdf(pdf_path)
+            text = remove_punctuation(text)
             document = Document(name=filename, text=text)
             documents.append(document)
     return documents
@@ -40,10 +46,11 @@ def load_documents_from_pdfs(pdf_folder: str) -> List[Document]:
 
 
 def save_to_json(filename, data):
-    """Сохраняет данные в файл JSON."""
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
     print(f"Данные успешно сохранены в файл: {filename}")
+
+
 def save_search_results_to_json(filename, search_results):
     search_results_dict = [result.to_dict() for result in search_results]
     save_to_json(filename, search_results_dict)
@@ -154,7 +161,8 @@ def search(search_info, tfidfs):
     return res
 
 def main():
-    pdf_folder_path = 'C:/Users/ICSS2location10/Desktop/datasets'  # Укажите путь к папке с PDF
+
+    pdf_folder_path = 'C:/Users/ICSS2location10/Desktop/diplom-pract/pre-datasets'
     documents = load_documents_from_pdfs(pdf_folder_path)
     for doc in documents:
         print(f"Document name: {doc.name}")
@@ -167,7 +175,6 @@ def main():
         for k, v in term.term_frequencies.items():
             print(f"Term: {k}: {v}")
     inverse_document_frequencies = calculate_inverse_document_frequencies(documents)
-
     tfidf_results = []
     for term_frequency in term_frequencies:
         tfidf_result = TFIDFResult(term_frequency.document_name)
@@ -176,13 +183,7 @@ def main():
         tfidf_results.append(tfidf_result)
 
     save_search_results_to_json("docs-tf-idf.json", tfidf_results)
-    search_query = 'здоровья яблоко'
-    search_results = search(search_query, tfidf_results)
 
-    save_search_results_to_json('search_results.json', search_results)
-
-    for item in search_results:
-        print(f"Document: {item.document_name}, Relevance Score: {item.relevance_score}")
 
 if __name__ == "__main__":
     main()
