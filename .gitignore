@@ -4,3 +4,5 @@
 datasets
 *.pdf
 pre-datasets
+*.pt
+*.pyc
